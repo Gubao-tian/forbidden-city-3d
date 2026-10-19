@@ -431,24 +431,6 @@ export function buildCity(mat) {
     garden.add(bed);
   }
 
-  // rockery (堆秀山): a cluster of boulders rather than one floating sphere
-  const ROCK_SEED = [
-    [-74, -168, 13, 1.0],
-    [-60, -162, 9, 1.3],
-    [-84, -158, 8, 1.1],
-    [-68, -176, 10, 0.9],
-    [-88, -172, 6, 1.4],
-  ];
-  for (const [x, z, r, sq] of ROCK_SEED) {
-    const rock = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), mat.rock);
-    rock.position.set(x, r * 0.55, z);
-    rock.scale.set(1, sq, 0.85);
-    rock.rotation.y = x * 0.37;
-    rock.castShadow = true;
-    rock.receiveShadow = true;
-    garden.add(rock);
-  }
-
   root.add(garden);
   labels.push({ name: "御花园", en: "Imperial Garden", pos: new THREE.Vector3(0, 34, -150) });
 
