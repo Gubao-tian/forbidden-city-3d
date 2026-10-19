@@ -30,7 +30,7 @@ scene.add(labelLayer);
 // Camera presets with eased transitions
 // ---------------------------------------------------------------------------
 const VIEWS = {
-  overview: { position: new THREE.Vector3(760, 660, 1120), target: new THREE.Vector3(0, 18, 40) },
+  overview: { position: new THREE.Vector3(520, 430, 880), target: new THREE.Vector3(0, 14, 40) },
   axis: { position: new THREE.Vector3(0, 170, 900), target: new THREE.Vector3(0, 30, -80) },
   taihe: { position: new THREE.Vector3(170, 90, 470), target: new THREE.Vector3(0, 30, 282) },
   garden: { position: new THREE.Vector3(62, 26, -74), target: new THREE.Vector3(28, 11, -122) },
@@ -67,7 +67,7 @@ function updateFlight(dt) {
 // ---------------------------------------------------------------------------
 const ui = {
   rotate: false,
-  labels: false,
+  labels: true,
   night: false,
 };
 
@@ -123,6 +123,17 @@ function render() {
   tick(dt);
 
   // keep the moat moving so it reads as water rather than a glass slab
+  // Labels behave like a map legend: they fade in as you approach, so the
+  // overview stays clean and the close-ups stay readable.
+  if (labelLayer.visible) {
+    for (const sprite of labelLayer.children) {
+      const d = camera.position.distanceTo(sprite.position);
+      const a = Math.min(1, Math.max(0, (950 - d) / 320));
+      sprite.visible = a > 0.02;
+      sprite.material.opacity = a * sprite.userData.baseOpacity;
+    }
+  }
+
   if (materials.water.normalMap) {
     materials.water.normalMap.offset.x = (materials.water.normalMap.offset.x + dt * 0.006) % 1;
     materials.water.normalMap.offset.y = (materials.water.normalMap.offset.y + dt * 0.004) % 1;

@@ -213,7 +213,9 @@ export function createCorridor({ length, along = "z" }, mat) {
 /** 角楼 — the nine-ridge, eighteen-column corner pavilion, simplified to three tiers. */
 export function createCornerTower(mat) {
   const g = new THREE.Group();
-  g.add(box(26, 6, 26, mat.stone, { y: 3 }));
+  // the tower stands on the wall itself, so its base is brick, not marble
+  g.add(box(22, 6, 22, mat.wall, { y: 3 }));
+  g.add(box(22.8, 0.6, 22.8, mat.stoneDark, { y: 6.1 }));
 
   g.add(box(16, 9, 16, mat.wall, { y: 6 + 4.5 }));
   const lower = new THREE.Mesh(
@@ -224,24 +226,25 @@ export function createCornerTower(mat) {
   lower.castShadow = true;
   g.add(lower);
 
-  g.add(box(10, 4.5, 10, mat.wall, { y: 20.2 }));
+  // middle storey, tucked into the lower roof
+  g.add(box(10, 4.2, 10, mat.wall, { y: 19.6 }));
+
   const upper = new THREE.Mesh(
     hipRoofGeometry({ width: 10, depth: 10, height: 6.5, overhang: 1.8, lift: 1.8 }),
     mat.roof,
   );
-  upper.position.y = 22.4;
+  upper.position.y = 21.4;
   upper.castShadow = true;
   g.add(upper);
 
-  group_addFinial(upper, mat);
-  g.userData.height = 30;
-  return g;
-}
+  // 宝顶 sits on the group, at the actual apex of the top roof
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.85, 10, 8), mat.gold);
+  finial.position.y = 21.4 + 6.5 + 0.6;
+  finial.castShadow = true;
+  g.add(finial);
 
-function group_addFinial(parent, mat) {
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 8), mat.gold);
-  ball.position.y = 22.4 + 6.9;
-  parent.add(ball);
+  g.userData.height = 29;
+  return g;
 }
 
 /** Open pavilion in the imperial garden: columns, railings, pyramidal roof. */
@@ -281,7 +284,7 @@ export function createPavilion(mat, scale = 1) {
   roof.castShadow = true;
   g.add(roof);
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8), mat.gold);
-  ball.position.y = 5.8 + 4.8;
+  ball.position.y = baseY + 4.9 + 4.6 + 0.45;
   g.add(ball);
   g.userData.height = 11 * scale;
   return g;

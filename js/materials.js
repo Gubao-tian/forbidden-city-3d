@@ -259,6 +259,7 @@ export function createMaterials() {
     beam: new THREE.MeshStandardMaterial({ map: toTexture(beamCanvas()), roughness: 0.65 }),
     gold: new THREE.MeshStandardMaterial({ color: 0xd8b25a, roughness: 0.32, metalness: 0.85 }),
     timber: new THREE.MeshStandardMaterial({ color: 0x6b2a18, roughness: 0.85 }),
+    voidDark: new THREE.MeshStandardMaterial({ color: 0x120d0a, roughness: 1 }),
     ground: new THREE.MeshStandardMaterial({
       map: toTexture(pave, { repeat: [300, 300] }),
       normalMap: toTexture(normalFromCanvas(pave, 1.5), { repeat: [300, 300], srgb: false }),

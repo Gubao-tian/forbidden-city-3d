@@ -139,24 +139,43 @@ export function buildCity(mat) {
   root.add(axis);
 
   // ---- outer wall + moat + corner towers -----------------------------------
-  for (const z of [AXIS.south, AXIS.north]) {
-    const seg = createWallSegment({ length: AXIS.halfWidth * 2, along: "x" }, mat);
-    seg.position.set(0, 0, z);
+  // The wall is broken wherever a gate sits in it, otherwise it runs straight
+  // across the 午门 and buries its arches.
+  const addWallRun = (from, to, along, fixed) => {
+    const len = Math.abs(to - from);
+    if (len < 1) return;
+    const seg = createWallSegment({ length: len, along }, mat);
+    if (along === "x") seg.position.set((from + to) / 2, 0, fixed);
+    else seg.position.set(fixed, 0, (from + to) / 2);
     root.add(seg);
-  }
+  };
+
+  const WUMEN_HALF = 56;
+  addWallRun(-AXIS.halfWidth, -WUMEN_HALF, "x", AXIS.south);
+  addWallRun(WUMEN_HALF, AXIS.halfWidth, "x", AXIS.south);
+
+  const SHENWU_HALF = 42;
+  addWallRun(-AXIS.halfWidth, -SHENWU_HALF, "x", AXIS.north);
+  addWallRun(SHENWU_HALF, AXIS.halfWidth, "x", AXIS.north);
+
+  const SIDE_GATE_Z = 250;
+  const SIDE_GATE_HALF = 24;
   for (const x of [-AXIS.halfWidth, AXIS.halfWidth]) {
-    const seg = createWallSegment({ length: AXIS.south * 2, along: "z" }, mat);
-    seg.position.set(x, 0, 0);
-    root.add(seg);
+    addWallRun(AXIS.north, SIDE_GATE_Z - SIDE_GATE_HALF, "z", x);
+    addWallRun(SIDE_GATE_Z + SIDE_GATE_HALF, AXIS.south, "z", x);
   }
 
   const moatW = 52;
-  const moatGap = 86;
+  const moatGap = 60;
+  // One ring, four runs that actually meet at the corners: the offset of each
+  // run is derived from the same outer bound, so no corner is left open.
+  const moatOuterX = AXIS.halfWidth + moatGap + moatW; // outer face of the ring
+  const moatOuterZ = AXIS.south + moatGap + moatW;
   const moatRuns = [
-    [0, AXIS.south + moatGap + moatW / 2, AXIS.halfWidth * 2 + moatW * 2, moatW],
-    [0, AXIS.north - moatGap - moatW / 2, AXIS.halfWidth * 2 + moatW * 2, moatW],
-    [-AXIS.halfWidth - moatGap - moatW / 2, 0, moatW, AXIS.south * 2],
-    [AXIS.halfWidth + moatGap + moatW / 2, 0, moatW, AXIS.south * 2],
+    [0, AXIS.south + moatGap + moatW / 2, moatOuterX * 2, moatW],
+    [0, AXIS.north - moatGap - moatW / 2, moatOuterX * 2, moatW],
+    [-AXIS.halfWidth - moatGap - moatW / 2, 0, moatW, moatOuterZ * 2],
+    [AXIS.halfWidth + moatGap + moatW / 2, 0, moatW, moatOuterZ * 2],
   ];
   for (const [x, z, w, d] of moatRuns) {
     const water = new THREE.Mesh(new THREE.BoxGeometry(w, 0.6, d), mat.water);
@@ -176,10 +195,68 @@ export function buildCity(mat) {
 
   // ---- meridian gate (午门): brick base, tower, two wings -------------------
   const wumen = new THREE.Group();
-  wumen.add(box(104, 12, 56, mat.wall, { y: 6 }));
+
+  // 城台 is built from piers and a masonry arch rather than one solid box, so
+  // the 券门 are real openings with depth behind them.
+  const H_TAI = 12;
+  const D_TAI = 56;
+  const ARCHES = [
+    { x: 0, w: 12, h: 9.8 },
+    { x: -25, w: 8.4, h: 7.8 },
+    { x: 25, w: 8.4, h: 7.8 },
+  ];
+
+  const buildPier = (x0, x1) => {
+    if (x1 - x0 < 0.05) return;
+    wumen.add(box(x1 - x0, H_TAI, D_TAI, mat.wall, { x: (x0 + x1) / 2, y: H_TAI / 2 }));
+  };
+
+  const buildArchHead = (a) => {
+    const N = 28;
+    const r = a.w / 2;
+    const springY = a.h - r;
+    for (let i = 0; i < N; i++) {
+      const x0 = a.x - r + (a.w * i) / N;
+      const x1 = a.x - r + (a.w * (i + 1)) / N;
+      const xm = (x0 + x1) / 2;
+      const dx = Math.abs(xm - a.x);
+      const yArc = dx < r ? springY + Math.sqrt(Math.max(0, r * r - dx * dx)) : a.h;
+      const colH = H_TAI - yArc;
+      if (colH > 0.08) {
+        wumen.add(box(x1 - x0 + 0.06, colH, D_TAI, mat.wall, { x: xm, y: yArc + colH / 2 }));
+      }
+    }
+  };
+
+  let cursor = -52;
+  // piers must be built left to right, otherwise a later pier fills in an
+  // opening that was already cut
+  for (const a of [...ARCHES].sort((p, q) => p.x - q.x)) {
+    const left = a.x - a.w / 2;
+    const right = a.x + a.w / 2;
+    buildPier(cursor, left);
+    buildArchHead(a);
+    // dark passage behind the opening
+    wumen.add(
+      box(a.w - 0.3, a.h - 0.3, 3.4, mat.voidDark, {
+        x: a.x,
+        y: (a.h - 0.3) / 2,
+        z: D_TAI / 2 - 1.9,
+      }),
+    );
+    cursor = right;
+  }
+  buildPier(cursor, 52);
+
+  // stone sill under each opening
+  for (const a of ARCHES) {
+    wumen.add(box(a.w + 0.6, 0.5, 4, mat.stoneDark, { x: a.x, y: 0.25, z: D_TAI / 2 - 1.4 }));
+  }
+
   wumen.add(box(108, 0.8, 60, mat.stoneDark, { y: 12.4 }));
+
   const wumenTower = createGate(
-    { w: 62, d: 22, h: 12, platform: { height: 2 }, roof: { height: 14, double: true } },
+    { w: 62, d: 22, h: 12, platform: { height: 1.2 }, roof: { height: 14, double: true } },
     mat,
   );
   wumenTower.position.y = 12;
@@ -187,13 +264,16 @@ export function buildCity(mat) {
 
   // 雁翅楼: the wings must sit on the city platform, not hover over the moat,
   // so each one gets a solid brick base continuous with the main block.
-  const WING_LEN = 52;
+  const WING_LEN = 32;
   const WING_Z = 22 + WING_LEN / 2;
   const wingBodyH = 9;
   for (const x of [-54, 54]) {
     wumen.add(box(30, 12, WING_LEN + 12, mat.wall, { x, y: 6, z: WING_Z - 4 }));
     wumen.add(box(17, wingBodyH, WING_LEN, mat.wall, { x, y: 12 + wingBodyH / 2, z: WING_Z }));
     wumen.add(box(18.4, 0.8, WING_LEN + 1.2, mat.beam, { x, y: 12 + wingBodyH + 0.4, z: WING_Z }));
+
+    // 掖门 on each wing, facing south
+    wumen.add(box(7.6, 7.2, 0.25, mat.voidDark, { x, y: 3.7, z: WING_Z - 4 + (WING_LEN + 12) / 2 - 0.05 }));
 
     const wingRoof = new THREE.Mesh(
       gableRoofGeometry({ width: WING_LEN + 3, depth: 19, height: 4.6, overhang: 1.1 }),
@@ -261,6 +341,11 @@ export function buildCity(mat) {
   // ---- side courtyards, traced from the palace plan ------------------------
   for (const cfg of DISTRICTS) {
     root.add(createCourt(mat, cfg));
+    labels.push({
+      name: cfg.name,
+      pos: new THREE.Vector3(cfg.x, 30, cfg.z),
+      small: true,
+    });
   }
 
   // ---- side gates through the outer wall: 东华门 / 西华门 -------------------
