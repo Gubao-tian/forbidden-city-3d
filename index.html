@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>故宫 · 中轴线 — 3D 漫游</title>
+  <meta name="description" content="用 three.js 程序化重建的故宫中轴线：午门、太和殿、乾清宫、神武门。无需构建，可离线运行。" />
+  <meta property="og:title" content="故宫 · 中轴线 3D" />
+  <meta property="og:description" content="A procedural three.js reconstruction of the Forbidden City central axis." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23a2271b'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='%23e8c06a' font-family='serif'%3E宫%3C/text%3E%3C/svg%3E" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="scene" aria-label="故宫三维场景"></canvas>
+
+  <header class="hud hud-title" data-ui>
+    <div class="seal" aria-hidden="true">宫</div>
+    <div>
+      <h1>故宫 · 中轴线</h1>
+      <p>The Forbidden City — Central Axis</p>
+    </div>
+  </header>
+
+  <div class="hud hud-hint" data-ui>
+    <span>拖拽旋转</span><i></i><span>滚轮缩放</span><i></i><span>右键平移</span>
+  </div>
+
+  <nav class="hud hud-actions" data-ui aria-label="视图控制">
+    <button type="button" data-view="overview" class="is-active">俯瞰</button>
+    <button type="button" data-view="axis">中轴线</button>
+    <button type="button" data-view="taihe">太和殿</button>
+    <button type="button" data-toggle="rotate">自动旋转</button>
+    <button type="button" data-toggle="labels">名称</button>
+    <button type="button" data-toggle="night">入夜</button>
+  </nav>
+
+  <div id="loading" role="status">
+    <div class="seal pulse" aria-hidden="true">宫</div>
+    <p>正在营造…</p>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

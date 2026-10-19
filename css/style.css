@@ -1,0 +1,180 @@
+:root {
+  --gold: #e0b978;
+  --gold-dim: #a8843f;
+  --red: #a2271b;
+  --ink: #0d0f14;
+  --glass: rgba(16, 18, 24, 0.62);
+  --stroke: rgba(224, 185, 120, 0.28);
+  --text: #f2ece1;
+  --muted: #b9b0a1;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0b0d12;
+  color: var(--text);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+#scene:active { cursor: grabbing; }
+
+.hud {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: hud-in 0.9s var(--ease) 0.25s forwards;
+}
+
+@keyframes hud-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hud-title {
+  top: max(28px, env(safe-area-inset-top));
+  left: max(30px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.seal {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, #b32d1f, #8d1f16);
+  color: #f0d9a8;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 26px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(240, 217, 168, 0.35) inset, 0 8px 24px rgba(0, 0, 0, 0.45);
+  flex: none;
+}
+
+.hud-title h1 {
+  margin: 0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 26px;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+}
+
+.hud-title p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-hint {
+  left: max(30px, env(safe-area-inset-left));
+  bottom: max(26px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
+}
+.hud-hint i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--gold-dim);
+  display: block;
+}
+
+.hud-actions {
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  pointer-events: auto;
+  max-width: min(560px, 70vw);
+}
+
+.hud-actions button {
+  appearance: none;
+  border: 1px solid var(--stroke);
+  background: var(--glass);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 9px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.22s var(--ease), border-color 0.22s var(--ease), color 0.22s var(--ease), transform 0.22s var(--ease);
+}
+
+.hud-actions button:hover {
+  background: rgba(224, 185, 120, 0.14);
+  border-color: rgba(224, 185, 120, 0.55);
+  transform: translateY(-1px);
+}
+
+.hud-actions button.is-active {
+  background: rgba(224, 185, 120, 0.9);
+  border-color: rgba(224, 185, 120, 0.9);
+  color: #1a1208;
+  font-weight: 600;
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  background: radial-gradient(circle at 50% 40%, #1a1c22 0%, #0b0d12 70%);
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  transition: opacity 0.7s var(--ease), visibility 0.7s;
+}
+
+#loading.is-done { opacity: 0; visibility: hidden; }
+
+#loading .seal { width: 62px; height: 62px; font-size: 34px; }
+#loading .pulse { animation: pulse 1.6s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 1px rgba(240, 217, 168, 0.35) inset, 0 8px 24px rgba(0, 0, 0, 0.45); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 1px rgba(240, 217, 168, 0.6) inset, 0 0 42px rgba(179, 45, 31, 0.55); }
+}
+
+/* Labels rendered as DOM-free sprites stay in WebGL; nothing to style here. */
+
+@media (max-width: 720px) {
+  .hud-title h1 { font-size: 20px; }
+  .hud-title p { font-size: 9px; }
+  .hud-hint { display: none; }
+  .hud-actions { max-width: 90vw; }
+  .hud-actions button { padding: 8px 12px; font-size: 12px; }
+}
