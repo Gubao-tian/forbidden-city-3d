@@ -96,6 +96,12 @@ measured carpentry. It is meant for orientation, teaching and atmosphere.
 laptop GPU at 1600×900. Courtyards merge their walls, roofs and stonework into
 a handful of draw calls each; that merge is why 31 courtyards are affordable.
 
+## Also in this site: Rail Runner
+
+A three-lane endless runner is published at [`/runner/`](runner/) — Canvas 2D,
+no dependencies, no asset files. Source and tests:
+<https://github.com/Gubao-tian/rail-runner>
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
