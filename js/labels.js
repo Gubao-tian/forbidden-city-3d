@@ -64,6 +64,7 @@ export function createLabelLayer(labels) {
     sprite.position.copy(item.pos);
     sprite.renderOrder = item.small ? 998 : 999;
     sprite.userData.baseOpacity = material.opacity;
+    sprite.userData.label = { name: item.name, en: item.en, focus: item.focus };
     group.add(sprite);
   }
 

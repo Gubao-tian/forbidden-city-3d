@@ -7,6 +7,7 @@ import {
   createCornerTower,
   createPavilion,
   createWallSegment,
+  createLion,
 } from "./buildings.js";
 import { createTree, createTreeMaterials } from "./trees.js";
 import { createCourt } from "./districts.js";
@@ -23,11 +24,18 @@ export const AXIS = {
   halfWidth: 376,
 };
 
+// 整体高度提升系数：对整个城市根节点做垂直方向的整体缩放，使宫殿、城墙、
+// 角楼、亭台、树木与远山在 y 方向同步拔高、更显巍峨，而平面布局（x/z）完全
+// 不变。这是线性缩放，所有「垂直堆叠关系」会被精确保持（角楼仍立于地面、金线
+// 仍高于御道、屋顶仍压在殿身之上）。标签与近景聚焦使用世界坐标，需同步乘此系数。
+export const HEIGHT_SCALE = 1.2;
+
 const HALLS = [
   {
     id: "taihe",
     name: "太和殿",
     en: "Hall of Supreme Harmony",
+    desc: "故宫三大殿之首，俗称「金銮殿」。明清两代皇帝在此举行登基、大婚、册立等最隆重的典礼。",
     z: 282,
     w: 64,
     d: 37,
@@ -35,11 +43,13 @@ const HALLS = [
     platform: { height: 8, tiers: 3 },
     roof: { height: 18, double: true },
     columnSpacing: 6,
+    beasts: 10,
   },
   {
     id: "zhonghe",
     name: "中和殿",
     en: "Hall of Central Harmony",
+    desc: "太和殿前的小殿，皇帝在举行大典前在此稍事休息、接受朝贺，是礼仪的过渡空间。",
     z: 226,
     w: 26,
     d: 26,
@@ -52,6 +62,7 @@ const HALLS = [
     id: "baohe",
     name: "保和殿",
     en: "Hall of Preserving Harmony",
+    desc: "三大殿之末，明清时曾在此举行殿试，皇帝亲自主持科举的最高一级考试。",
     z: 180,
     w: 50,
     d: 24,
@@ -64,6 +75,7 @@ const HALLS = [
     id: "qianqing",
     name: "乾清宫",
     en: "Palace of Heavenly Purity",
+    desc: "内廷后三宫之首，明代及清初为皇帝寝宫，清雍正后改为处理日常政务、接见大臣之所。",
     z: 44,
     w: 46,
     d: 22,
@@ -76,6 +88,7 @@ const HALLS = [
     id: "jiaotai",
     name: "交泰殿",
     en: "Hall of Union",
+    desc: "位于乾清宫与坤宁宫之间，存放皇帝宝玺，象征天地交泰、阴阳和合。",
     z: -6,
     w: 22,
     d: 22,
@@ -88,6 +101,7 @@ const HALLS = [
     id: "kunning",
     name: "坤宁宫",
     en: "Palace of Earthly Tranquility",
+    desc: "内廷后三宫之一，明代为皇后寝宫，清代改建为祭祀与皇帝大婚的洞房。",
     z: -46,
     w: 40,
     d: 20,
@@ -103,6 +117,7 @@ const GATES = [
     id: "taihemen",
     name: "太和门",
     en: "Gate of Supreme Harmony",
+    desc: "外朝正门，皇帝在此「御门听政」，接受百官朝贺。门前铜狮与金水桥遥相呼应。",
     z: 352,
     w: 40,
     d: 18,
@@ -114,6 +129,7 @@ const GATES = [
     id: "qianqingmen",
     name: "乾清门",
     en: "Gate of Heavenly Purity",
+    desc: "内廷与外朝的分界，门内即皇帝寝居的后三宫，是「国」与「家」的分水岭。",
     z: 104,
     w: 34,
     d: 16,
@@ -123,7 +139,7 @@ const GATES = [
   },
 ];
 
-export function buildCity(mat) {
+export function buildCity(mat, { season = "summer" } = {}) {
   const root = new THREE.Group();
   const labels = [];
 
@@ -133,10 +149,90 @@ export function buildCity(mat) {
   ground.receiveShadow = true;
   root.add(ground);
 
+  // A thin snowfield for winter: a translucent white sheet just above the
+  // paving so the whole city reads as freshly snowed, while the plazas and
+  // paths still ghost through underneath.
+  if (season === "winter") {
+    const snow = new THREE.Mesh(
+      new THREE.PlaneGeometry(12000, 12000),
+      new THREE.MeshStandardMaterial({ color: 0xeef3f7, roughness: 0.9, transparent: true, opacity: 0.92 }),
+    );
+    snow.rotation.x = -Math.PI / 2;
+    snow.position.y = 0.05;
+    snow.receiveShadow = true;
+    root.add(snow);
+  }
+
   root.add(box(14, 0.35, 960, mat.stone, { y: 0.18 }));
 
-  const axis = box(0.9, 0.35, 960, mat.gold, { y: 0.42, shadow: false });
-  root.add(axis);
+  // The gilded central axis runs the ceremonial length of the palace — from the
+  // Meridian Gate up to the Imperial Garden, then again from the garden's north
+  // edge to the Gate of Divine Might. It is deliberately split so the garden
+  // (a landscape of pavilions, planting beds and the Hall of Imperial Peace)
+  // is NOT bisected by a gold line, which previously read as a broken, flickering
+  // stripe. Each run sits ABOVE the stone path (base clears the path top face,
+  // y≈0.355) so it never z-fights when the camera closes in.
+  const GARDEN_SOUTH = -100; // south edge of the Imperial Garden
+  const GARDEN_NORTH = -210; // north edge, where the axis resumes
+  const axisSouth = box(1.3, 0.18, AXIS.south - GARDEN_SOUTH, mat.gold, {
+    y: 0.46,
+    z: (AXIS.south + GARDEN_SOUTH) / 2,
+    shadow: false,
+  });
+  const axisNorth = box(1.3, 0.18, GARDEN_NORTH - AXIS.north, mat.gold, {
+    y: 0.46,
+    z: (GARDEN_NORTH + AXIS.north) / 2,
+    shadow: false,
+  });
+  root.add(axisSouth, axisNorth);
+
+  // ---- distant hills, ringing the palace so the horizon is not empty --------
+  // A belt of low blue-grey ridges sits far outside the moat; the fog washes
+  // them into soft silhouettes that frame the city. Each hill is a flattened
+  // cone with a deterministic wobble so the ring looks natural, not stamped.
+  const hills = new THREE.Group();
+  hills.name = "hills";
+  const hillMat = new THREE.MeshStandardMaterial({
+    color: 0x6e8599,
+    roughness: 1,
+    flatShading: true,
+  });
+  const mulberry = (seed) => {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+  const hillRand = mulberry(2024);
+  const HILL_COUNT = 22;
+  for (let i = 0; i < HILL_COUNT; i++) {
+    const a = (i / HILL_COUNT) * Math.PI * 2 + hillRand() * 0.4;
+    const radius = 2100 + hillRand() * 700;
+    const x = Math.cos(a) * radius;
+    const z = Math.sin(a) * radius;
+    const h = 160 + hillRand() * 240;
+    const r = 320 + hillRand() * 420;
+    const hill = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7, 1), hillMat);
+    hill.position.set(x, h / 2 - 6, z);
+    hill.rotation.y = hillRand() * Math.PI;
+    hill.receiveShadow = false;
+    hills.add(hill);
+    // a smaller neighbour to break the skyline
+    if (hillRand() > 0.4) {
+      const r2 = r * (0.5 + hillRand() * 0.4);
+      const h2 = h * (0.55 + hillRand() * 0.4);
+      const h2x = x + (hillRand() - 0.5) * r * 1.6;
+      const h2z = z + (hillRand() - 0.5) * r * 1.6;
+      const hill2 = new THREE.Mesh(new THREE.ConeGeometry(r2, h2, 6, 1), hillMat);
+      hill2.position.set(h2x, h2 / 2 - 8, h2z);
+      hill2.rotation.y = hillRand() * Math.PI;
+      hills.add(hill2);
+    }
+  }
+  root.add(hills);
 
   // ---- outer wall + moat + corner towers -----------------------------------
   // The wall is broken wherever a gate sits in it, otherwise it runs straight
@@ -294,8 +390,19 @@ export function buildCity(mat) {
     );
   }
   wumen.position.set(0, 0, AXIS.south);
+  wumen.userData.info = {
+    id: "wumen",
+    name: "午门",
+    en: "Meridian Gate",
+    desc: "故宫正门，形如展翅的「雁翅楼」。皇帝在此颁发诏书、举行献俘礼，民间所谓「推出午门斩首」实为讹传。",
+  };
   root.add(wumen);
-  labels.push({ name: "午门", en: "Meridian Gate", pos: new THREE.Vector3(0, 44, AXIS.south) });
+  labels.push({
+    name: "午门",
+    en: "Meridian Gate",
+    pos: new THREE.Vector3(0, 44, AXIS.south),
+    focus: { target: new THREE.Vector3(0, 18, AXIS.south + 20), dist: 160, height: 55 },
+  });
 
   // ---- golden water river and its five bridges -----------------------------
   const water = new THREE.Mesh(new THREE.BoxGeometry(300, 0.6, 26), mat.water);
@@ -312,19 +419,37 @@ export function buildCity(mat) {
   for (const g of GATES) {
     const gate = createGate(g, mat);
     gate.position.set(0, 0, g.z);
+    gate.userData.info = { id: g.id, name: g.name, en: g.en, desc: g.desc };
     root.add(gate);
-    labels.push({ name: g.name, en: g.en, pos: new THREE.Vector3(0, g.h + 22, g.z) });
+    labels.push({
+      name: g.name,
+      en: g.en,
+      pos: new THREE.Vector3(0, g.h + 22, g.z),
+      focus: { target: new THREE.Vector3(0, g.h * 0.6, g.z + 20), dist: 120, height: 42 },
+    });
+
+    // 太和门 pairs with two bronze lions on the plaza before it
+    if (g.id === "taihemen") {
+      for (const side of [-1, 1]) {
+        const lion = createLion(mat, { scale: 1.15, mirror: side > 0 });
+        lion.position.set(side * 30, 0, g.z + 26);
+        lion.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+        root.add(lion);
+      }
+    }
   }
 
   // ---- the great halls -----------------------------------------------------
   for (const h of HALLS) {
     const hall = createHall(h, mat);
     hall.position.set(0, 0, h.z);
+    hall.userData.info = { id: h.id, name: h.name, en: h.en, desc: h.desc };
     root.add(hall);
     labels.push({
       name: h.name,
       en: h.en,
       pos: new THREE.Vector3(0, hall.userData.height + 12, h.z),
+      focus: { target: new THREE.Vector3(0, h.h * 0.5, h.z + h.d), dist: h.w * 2.4, height: h.h * 1.6 },
     });
   }
 
@@ -340,11 +465,14 @@ export function buildCity(mat) {
 
   // ---- side courtyards, traced from the palace plan ------------------------
   for (const cfg of DISTRICTS) {
-    root.add(createCourt(mat, cfg));
+    const court = createCourt(mat, cfg);
+    court.userData.info = { id: cfg.name, name: cfg.name, en: "", desc: cfg.desc || "" };
+    root.add(court);
     labels.push({
       name: cfg.name,
       pos: new THREE.Vector3(cfg.x, 30, cfg.z),
       small: true,
+      focus: { target: new THREE.Vector3(cfg.x, 8, cfg.z), dist: Math.max(cfg.w, cfg.d) * 1.6, height: 46 },
     });
   }
 
@@ -373,8 +501,9 @@ export function buildCity(mat) {
   const garden = new THREE.Group();
   const treeMats = createTreeMaterials();
 
-  // Jittered grid reads as planting beds rather than random scatter.
-  const KINDS = ["cypress", "cypress", "cypress", "pine", "pine", "broadleaf"];
+  // Jittered grid reads as planting beds rather than random scatter. The mix
+  // favours evergreen 古柏/松, with a few autumn 银杏 and spring 玉兰 for colour.
+  const KINDS = ["cypress", "cypress", "pine", "pine", "broadleaf", "ginkgo", "ginkgo", "magnolia"];
   let seed = 1;
   for (let ix = -2; ix <= 2; ix++) {
     for (let iz = -3; iz <= 1; iz++) {
@@ -383,7 +512,7 @@ export function buildCity(mat) {
       if (Math.abs(x) < 17) continue; // keep the axis clear
 
       const kind = KINDS[Math.floor(Math.random() * KINDS.length)];
-      const tree = createTree(treeMats, { kind, seed: seed++ });
+      const tree = createTree(treeMats, { kind, seed: seed++, season });
       tree.position.set(x, 0, z);
       tree.rotation.y = Math.random() * Math.PI * 2;
       garden.add(tree);
@@ -396,17 +525,21 @@ export function buildCity(mat) {
   }
 
   for (let i = 0; i < 10; i++) {
-    const shrub = createTree(treeMats, { kind: "broadleaf", seed: 900 + i });
+    const shrub = createTree(treeMats, { kind: "broadleaf", seed: 900 + i, season });
     shrub.scale.setScalar(0.26);
     shrub.position.set((Math.random() - 0.5) * 160, 0, -150 + (Math.random() - 0.5) * 80);
     if (Math.abs(shrub.position.x) < 18) continue;
     garden.add(shrub);
   }
 
+  // The garden pavilions frame the axis from either side; the central lane is
+  // left open so the axis path reads as one continuous walk, not a stripe that
+  // gets chopped up by a pavilion standing square in the middle of it.
   for (const [x, z, s] of [
     [-46, -118, 0.9],
     [46, -118, 0.9],
-    [0, -168, 1.15],
+    [-34, -168, 0.72],
+    [34, -168, 0.72],
   ]) {
     const p = createPavilion(mat, s);
     p.position.set(x, 0, z);
@@ -416,14 +549,22 @@ export function buildCity(mat) {
   // 钦安殿 at the heart of the garden
   const qinandian = createPavilion(mat, 1.35);
   qinandian.position.set(0, 0, -140);
+  qinandian.userData.info = {
+    id: "qinan",
+    name: "钦安殿",
+    en: "Hall of Imperial Peace",
+    desc: "御花园中心的主殿，供奉道教玄天上帝（真武大帝），是宫中现存最古老的建筑之一。",
+  };
   garden.add(qinandian);
 
   // planting beds: dark earth under the trees, so the garden does not read as
-  // a paved square that happens to have trees standing on it
+  // a paved square that happens to have trees standing on it. The north bed is
+  // split either side of the axis so the central path stays unbroken.
   for (const [x, z, w, d] of [
     [-92, -128, 130, 90],
     [92, -128, 130, 90],
-    [0, -206, 300, 70],
+    [-82, -206, 120, 70],
+    [82, -206, 120, 70],
   ]) {
     const bed = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, d), mat.soil);
     bed.position.set(x, 0.18, z);
@@ -432,7 +573,12 @@ export function buildCity(mat) {
   }
 
   root.add(garden);
-  labels.push({ name: "御花园", en: "Imperial Garden", pos: new THREE.Vector3(0, 34, -150) });
+  labels.push({
+    name: "御花园",
+    en: "Imperial Garden",
+    pos: new THREE.Vector3(0, 34, -150),
+    focus: { target: new THREE.Vector3(0, 10, -130), dist: 120, height: 30 },
+  });
 
   // ---- shenwu gate (神武门) ------------------------------------------------
   const shenwu = new THREE.Group();
@@ -444,8 +590,64 @@ export function buildCity(mat) {
   shenwuTower.position.y = 10;
   shenwu.add(shenwuTower);
   shenwu.position.set(0, 0, AXIS.north);
+  shenwu.userData.info = {
+    id: "shenwu",
+    name: "神武门",
+    en: "Gate of Divine Might",
+    desc: "故宫北门，原名「玄武门」，因避康熙帝玄烨名讳改称「神武门」。现为故宫博物院正门。",
+  };
   root.add(shenwu);
-  labels.push({ name: "神武门", en: "Gate of Divine Might", pos: new THREE.Vector3(0, 42, AXIS.north) });
+  labels.push({
+    name: "神武门",
+    en: "Gate of Divine Might",
+    pos: new THREE.Vector3(0, 42, AXIS.north),
+    focus: { target: new THREE.Vector3(0, 18, AXIS.north - 20), dist: 150, height: 50 },
+  });
 
-  return { group: root, labels };
+  // ---- distant birds, a slow circling flock for atmosphere ------------------
+  // Each bird is a tiny two-triangle silhouette; the flock orbits the palace on
+  // a large radius, animated in main.js so the sky is never quite still.
+  const birds = new THREE.Group();
+  birds.name = "birds";
+  const birdGeo = (() => {
+    const g = new THREE.BufferGeometry();
+    const v = new Float32Array([
+      0, 0, 0, 1.1, 0.16, 0.3, 0.6, 0, 0.55,
+      0, 0, 0, -1.1, 0.16, 0.3, -0.6, 0, 0.55,
+    ]);
+    g.setAttribute("position", new THREE.BufferAttribute(v, 3));
+    g.computeVertexNormals();
+    return g;
+  })();
+  const birdMat = new THREE.MeshBasicMaterial({
+    color: 0x2a2f38,
+    side: THREE.DoubleSide,
+  });
+  for (let i = 0; i < 14; i++) {
+    const b = new THREE.Mesh(birdGeo, birdMat);
+    b.userData = {
+      radius: 360 + Math.random() * 420,
+      speed: (0.05 + Math.random() * 0.06) * (Math.random() > 0.5 ? 1 : -1),
+      phase: Math.random() * Math.PI * 2,
+      y: 210 + Math.random() * 130,
+      scale: 2.4 + Math.random() * 2.6,
+    };
+    b.scale.setScalar(b.userData.scale);
+    birds.add(b);
+  }
+  root.add(birds);
+
+  // 整体提升：垂直方向统一拔高。平面尺度不变，只让城市在 y 方向更挺拔。
+  root.scale.y = HEIGHT_SCALE;
+  // 标签与近景聚焦点是世界坐标（不在 root 内），必须同步放大其 y，否则名称
+  // 标签会飘在变高后的建筑下方，点击近景也会聚焦偏低。
+  for (const lbl of labels) {
+    lbl.pos.y *= HEIGHT_SCALE;
+    if (lbl.focus) {
+      lbl.focus.target.y *= HEIGHT_SCALE;
+      if (typeof lbl.focus.height === "number") lbl.focus.height *= HEIGHT_SCALE;
+    }
+  }
+
+  return { group: root, labels, birds };
 }

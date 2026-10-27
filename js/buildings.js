@@ -90,6 +90,42 @@ function ridge(group, mat, { w, y, z = 0 }) {
 }
 
 /**
+ * 脊兽 —— the glazed-tile guardian beasts that ride the hip ridges. On a real
+ * hall the count encodes rank (太和殿 takes ten); here they are a small run of
+ * crouching forms plus a 螭吻 (dragon) at the very end of each ridge, which is
+ * what makes a roof read as a palace roof rather than a tent.
+ */
+function ridgeBeasts(group, mat, { w, d, y, count = 5, angle = 0.78 }) {
+  const beastCount = Math.max(3, count);
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const endX = sx * (w / 2 + 0.6);
+      const endZ = sz * (d / 2 + 0.6);
+      // small beasts climb the ridge from the eave toward the apex
+      for (let i = 0; i < beastCount; i++) {
+        const t = (i + 1) / (beastCount + 1);
+        const px = endX * (1 - t * 0.72);
+        const pz = endZ * (1 - t * 0.72);
+        const beast = new THREE.Mesh(
+          new THREE.ConeGeometry(0.42, 0.85, 6),
+          mat.ridge,
+        );
+        beast.position.set(px, y + 0.55 + i * 0.06, pz);
+        beast.rotation.y = Math.atan2(-sz, -sx) + Math.PI / 2;
+        beast.castShadow = true;
+        group.add(beast);
+      }
+      // 螭吻 dragon finial at the ridge tip, turned to face outward
+      const chiwen = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.15, 5), mat.gold);
+      chiwen.position.set(endX, y + 0.75, endZ);
+      chiwen.rotation.z = -Math.sign(sx) * angle * 0.4;
+      chiwen.castShadow = true;
+      group.add(chiwen);
+    }
+  }
+}
+
+/**
  * A palace hall: platform, body, colonnade, painted beam band, roof.
  */
 export function createHall(cfg, mat) {
@@ -143,6 +179,19 @@ export function createHall(cfg, mat) {
     roof.receiveShadow = true;
     g.add(roof);
     ridge(g, mat, { w, y: y + cfg.roof.height, z: 0 });
+  }
+
+  // hip-ridge guardian beasts — only the great halls get the full run. On a
+  // double-eaved roof the beasts sit on the upper roof, which starts above the
+  // clerestory (midH), so the ridge baseline is higher than on a single roof.
+  if (!simple && cfg.beasts !== false) {
+    const midH = cfg.roof.double ? h * 0.16 : 0;
+    ridgeBeasts(g, mat, {
+      w: w * (cfg.roof.double ? 0.84 : 1),
+      d: d * (cfg.roof.double ? 0.84 : 1),
+      y: y + midH + cfg.roof.height * 0.62,
+      count: cfg.beasts ?? 5,
+    });
   }
 
   const total = y + cfg.roof.height + 1;
@@ -207,6 +256,44 @@ export function createCorridor({ length, along = "z" }, mat) {
   roof.castShadow = true;
   g.add(roof);
   g.userData.height = 1.2 + 5.4 + 0.9 + 3.4;
+  return g;
+}
+
+/**
+ * 石狮 —— a stylised guardian lion: plinth, seated body, mane, head. The male
+ * (ball under its paw) and female (cub at its side) flank a gate in pairs.
+ */
+export function createLion(mat, { scale = 1, mirror = false } = {}) {
+  const g = new THREE.Group();
+  const s = scale;
+
+  g.add(box(3.4 * s, 1.0 * s, 2.4 * s, mat.stone, { y: 0.5 * s }));
+  g.add(box(2.2 * s, 1.7 * s, 1.4 * s, mat.stone, { y: (1.0 + 0.85) * s }));
+  g.add(box(1.9 * s, 1.9 * s, 1.3 * s, mat.stone, { y: (1.0 + 0.95) * s, z: 0.15 * s }));
+
+  const mane = new THREE.Mesh(new THREE.CylinderGeometry(0.95 * s, 0.75 * s, 0.55 * s, 9), mat.stoneDark);
+  mane.rotation.x = Math.PI / 2;
+  mane.position.set(0, (1.0 + 1.7 + 0.35) * s, 0.25 * s);
+  g.add(mane);
+
+  g.add(box(1.1 * s, 0.95 * s, 1.0 * s, mat.stone, { y: (1.0 + 1.7 + 0.85) * s, z: 0.42 * s }));
+
+  for (const ex of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.18 * s, 0.5 * s, 5), mat.stoneDark);
+    ear.position.set(ex * 0.42 * s, (1.0 + 1.7 + 1.3) * s, 0.42 * s);
+    ear.rotation.z = ex * 0.5;
+    g.add(ear);
+  }
+
+  if (!mirror) {
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.4 * s, 8, 8), mat.gold);
+    ball.position.set(0.55 * s, (1.0 + 0.4) * s, 0.6 * s);
+    g.add(ball);
+  } else {
+    g.add(box(0.7 * s, 0.55 * s, 0.6 * s, mat.stoneDark, { x: 0.7 * s, y: (1.0 + 0.3) * s, z: 0.5 * s }));
+  }
+
+  g.userData.height = 4.5 * s;
   return g;
 }
 

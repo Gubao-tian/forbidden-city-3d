@@ -26,22 +26,33 @@
   </header>
 
   <div class="hud hud-hint" data-ui>
-    <span>拖拽旋转</span><i></i><span>滚轮缩放</span><i></i><span>右键平移</span>
+    <span>拖拽旋转</span><i></i><span>滚轮缩放</span><i></i><span>右键平移</span><i></i><span>点击建筑看介绍</span><i></i><span>S 换季 · T 时间</span>
   </div>
 
   <nav class="hud hud-actions" data-ui aria-label="视图控制">
     <button type="button" data-view="overview" class="is-active">俯瞰</button>
     <button type="button" data-view="axis">中轴线</button>
     <button type="button" data-view="taihe">太和殿</button>
+    <button type="button" data-view="garden">御花园</button>
+    <button type="button" data-cycle="season">季节·夏</button>
     <button type="button" data-toggle="rotate">自动旋转</button>
     <button type="button" data-toggle="labels">名称</button>
     <button type="button" data-toggle="night">入夜</button>
+    <button type="button" data-toggle="auto">时间流动</button>
+    <button type="button" data-toggle="stereo">3D立体</button>
   </nav>
 
   <div id="loading" role="status">
     <div class="seal pulse" aria-hidden="true">宫</div>
     <p>正在营造…</p>
   </div>
+
+  <aside id="info" class="info-card" role="dialog" aria-live="polite" hidden>
+    <button type="button" id="info-close" aria-label="关闭">×</button>
+    <h2 id="info-name">太和殿</h2>
+    <p id="info-en">Hall of Supreme Harmony</p>
+    <p id="info-desc"></p>
+  </aside>
 
   <script type="module" src="./js/main.js"></script>
 </body>

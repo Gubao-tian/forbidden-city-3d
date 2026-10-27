@@ -150,6 +150,30 @@ const SPECIES = {
     size: [2.0, 3.0],
     branches: 4,
   },
+  // 银杏 in autumn: tall, golden-yellow, round crown — the signature fall tree
+  ginkgo: {
+    height: [9, 13],
+    trunk: 0.58,
+    crown: "round",
+    hue: 0.12,
+    sat: 0.62,
+    light: [0.48, 0.56],
+    clusters: [24, 32],
+    size: [1.7, 2.6],
+    branches: 4,
+  },
+  // 玉兰: spring blossoms, taller with a slightly open crown
+  magnolia: {
+    height: [8, 11],
+    trunk: 0.5,
+    crown: "round",
+    hue: 0.96,
+    sat: 0.28,
+    light: [0.68, 0.78],
+    clusters: [18, 24],
+    size: [1.8, 2.6],
+    branches: 3,
+  },
 };
 
 function crownPoints(kind, rand, h, cfg) {
@@ -216,8 +240,17 @@ function leafCard(size, position, rand, color) {
   return geo;
 }
 
-export function createTree(mats, { kind = "cypress", seed = 1 } = {}) {
+/** Per-season leaf palette shift: hue offset, saturation and lightness scale. */
+const SEASONS = {
+  spring: { hue: -0.01, sat: 1.15, light: 1.08 }, // fresh greens + blossom
+  summer: { hue: 0.0, sat: 1.0, light: 1.0 },
+  autumn: { hue: 0.06, sat: 1.3, light: 1.02 }, // toward gold / red
+  winter: { hue: 0.0, sat: 0.35, light: 0.85 }, // bare, muted branches
+};
+
+export function createTree(mats, { kind = "cypress", seed = 1, season = "summer" } = {}) {
   const cfg = SPECIES[kind] ?? SPECIES.cypress;
+  const s = SEASONS[season] ?? SEASONS.summer;
   const rand = mulberry32(seed * 2654435761);
   const h = cfg.height[0] + rand() * (cfg.height[1] - cfg.height[0]);
 
@@ -251,7 +284,7 @@ export function createTree(mats, { kind = "cypress", seed = 1 } = {}) {
   group.add(trunkMesh);
 
   // ---- canopy --------------------------------------------------------------
-  const base = new THREE.Color().setHSL(cfg.hue, cfg.sat, cfg.light[0]);
+  const base = new THREE.Color().setHSL(cfg.hue + s.hue, cfg.sat * s.sat, cfg.light[0] * s.light);
   const cards = [];
   for (const p of crownPoints(kind, rand, h, cfg)) {
     const size = cfg.size[0] + rand() * (cfg.size[1] - cfg.size[0]);
